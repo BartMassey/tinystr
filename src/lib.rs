@@ -24,14 +24,9 @@
 //!     assert_eq!(s2.is_ascii_alphanumeric(), false);
 //! }
 //! ```
-mod helpers;
-mod tinystr16;
-mod tinystr4;
-mod tinystr8;
+mod tinystr;
 
-pub use tinystr16::TinyStr16;
-pub use tinystr4::TinyStr4;
-pub use tinystr8::TinyStr8;
+pub use crate::tinystr::{TinyStr4, TinyStr8, TinyStr16};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Error {
