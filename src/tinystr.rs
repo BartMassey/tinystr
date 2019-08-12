@@ -6,17 +6,14 @@ use std::str::FromStr;
 
 use crate::Error;
 
-#[inline(always)]
 const fn genmask4(byte: u8) -> u32 {
     (byte as u32)<<24|(byte as u32)<<16|(byte as u32)<<8|(byte as u32)
 }
 
-#[inline(always)]
 const fn genmask8(byte: u8) -> u64 {
     (genmask4(byte) as u64) << 32|(genmask4(byte) as u64)
 }
 
-#[inline(always)]
 const fn genmask16(byte: u8) -> u128 {
     (genmask8(byte) as u128) << 64 | (genmask8(byte) as u128)
 }
@@ -37,17 +34,12 @@ macro_rules! tinytype {
         impl $ty {
 
             #[inline(always)]
-            const fn get(&self) -> $ut {
-                self.0.get()
+            const fn size() -> usize {
+                std::mem::size_of::<$ut>()
             }
 
             #[inline(always)]
-            const fn size() -> u32 {
-                std::mem::size_of::<$ut>() as u32
-            }
-
-            #[inline(always)]
-            pub unsafe fn new_unchecked(text: $ut) -> Self {
+            pub const unsafe fn new_unchecked(text: $ut) -> Self {
                 $ty(<$nzt>::new_unchecked(<$ut>::from_le(text)))
             }
 
@@ -57,40 +49,51 @@ macro_rules! tinytype {
             }
 
             pub fn to_ascii_uppercase(self) -> Self {
-                let word = self.get();
+                const MASK_1F: $ut = $gm(0x1f);
+                const MASK_05: $ut = $gm(0x05);
+                const MASK_80: $ut = $gm(0x80);
+                let word = self.0.get();
                 let result = word
-                    & !(((word + $gm(0x1f))
-                        & !(word + $gm(0x05))
-                        & $gm(0x80))
+                    & !(((word + MASK_1F)
+                        & !(word + MASK_05)
+                        & MASK_80)
                         >> 2);
-                unsafe { Self::new_unchecked(result) }
+                unsafe { Self(<$nzt>::new_unchecked(result)) }
             }
 
             pub fn to_ascii_lowercase(self) -> Self {
-                let word = self.get();
+                let word = self.0.get();
                 let result = word
                     | (((word + $gm(0x3f))
                         & !(word + $gm(0x25))
                         & $gm(0x80))
                         >> 2);
-                unsafe { Self::new_unchecked(result) }
+                unsafe { Self(<$nzt>::new_unchecked(result)) }
             }
 
             /// Makes the string all lowercase except for
             /// the first character, which is made
             /// uppercase.
             pub fn to_ascii_titlecase(self) -> $ty {
+                const MASK_1F: $ut = $gm(0x3f) & !0x20;
+                const MASK_05: $ut = $gm(0x25) & !0x20;
+                const MASK_80: $ut = $gm(0x80);
                 let word = self.0.get().to_le();
-                let mask = ((word + 0x3f3f_3f1f) & !(word + 0x2525_2505) & 0x8080_8080) >> 2;
+                let mask = ((word + MASK_1F) & !(word + MASK_05) & MASK_80) >> 2;
                 let result = (word | mask) & !(0x20 & mask);
-                unsafe { $ty::new_unchecked(<$ut>::from_le(result)) }
+                unsafe { Self(<$nzt>::new_unchecked(<$ut>::from_le(result))) }
             }
 
             pub fn is_ascii_alphanumeric(self) -> bool {
-                let word = self.get();
-                let mask = (word + $gm(0x7f)) & $gm(0x80);
-                let lower = word | $gm(0x20);
-                ((!(lower + $gm(0x1f)) | (lower + $gm(0x05))) & mask) == 0
+                const MASK_7F: $ut = $gm(0x7f);
+                const MASK_80: $ut = $gm(0x80);
+                const MASK_20: $ut = $gm(0x20);
+                const MASK_1F: $ut = $gm(0x1f);
+                const MASK_05: $ut = $gm(0x05);
+                let word = self.0.get();
+                let mask = (word + MASK_7F) & MASK_80;
+                let lower = word | MASK_20;
+                ((!(lower + MASK_1F) | (lower + MASK_05)) & mask) == 0
             }
 
         }
@@ -101,10 +104,10 @@ macro_rules! tinytype {
             #[inline(always)]
             fn deref(&self) -> &str {
                 // Again, could use #cfg to hand-roll a big-endian implementation.
-                let word = self.get().to_le();
-                let len = (Self::size() - word.leading_zeros() / 8) as usize;
+                let word = self.0.get().to_le();
+                let len = <$ty>::size() - word.leading_zeros() as usize / 8;
                 unsafe {
-                    let slice = core::slice::from_raw_parts(&self.get() as *const _ as *const u8, len);
+                    let slice = core::slice::from_raw_parts(&self.0.get() as *const _ as *const u8, len);
                     std::str::from_utf8_unchecked(slice)
                 }
             }
@@ -137,13 +140,13 @@ macro_rules! tinytype {
 
         impl Ord for $ty {
             fn cmp(&self, other: &Self) -> Ordering {
-                self.get().to_be().cmp(&other.get().to_be())
+                self.0.get().to_be().cmp(&other.0.get().to_be())
             }
         }
 
         impl From<$ty> for $ut {
             fn from(val: $ty) -> $ut {
-                val.get().to_le()
+                val.0.get().to_le()
             }
         }
 
@@ -193,7 +196,7 @@ impl FromStr for TinyStr4 {
 }
 
 macro_rules! impl_from_str {
-    ($ty:ty, $ut:ty, $gm:ident) => {
+    ($ty:ty, $nzt:ty, $ut:ty, $gm:ident) => {
         impl FromStr for $ty {
             type Err = Error;
 
@@ -223,12 +226,12 @@ macro_rules! impl_from_str {
                     return Err(Error::InvalidNull);
                 }
                 unsafe {
-                    Ok(Self::new_unchecked(word))
+                    Ok(Self(<$nzt>::new_unchecked(word)))
                 }
             }
         }
     };
 }
 
-impl_from_str!(TinyStr8, u64, genmask8);
-impl_from_str!(TinyStr16, u128, genmask16);
+impl_from_str!(TinyStr8, NonZeroU64, u64, genmask8);
+impl_from_str!(TinyStr16, NonZeroU128, u128, genmask16);

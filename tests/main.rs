@@ -313,6 +313,51 @@ fn tiny16_alpha() {
         .is_ascii_alphanumeric());
 }
 
+
+#[test]
+fn tiny16_titlecase() {
+    assert_eq!(
+        "abcd"
+            .parse::<TinyStr16>()
+            .unwrap()
+            .to_ascii_titlecase()
+            .as_str(),
+        "Abcd"
+    );
+    assert_eq!(
+        "ABCD"
+            .parse::<TinyStr16>()
+            .unwrap()
+            .to_ascii_titlecase()
+            .as_str(),
+        "Abcd"
+    );
+    assert_eq!(
+        "aBCD"
+            .parse::<TinyStr16>()
+            .unwrap()
+            .to_ascii_titlecase()
+            .as_str(),
+        "Abcd"
+    );
+    assert_eq!(
+        "A123"
+            .parse::<TinyStr16>()
+            .unwrap()
+            .to_ascii_titlecase()
+            .as_str(),
+        "A123"
+    );
+    assert_eq!(
+        "123a"
+            .parse::<TinyStr16>()
+            .unwrap()
+            .to_ascii_titlecase()
+            .as_str(),
+        "123a"
+    );
+}
+
 #[test]
 fn tiny16_titlecase() {
     assert_eq!(
