@@ -181,44 +181,42 @@ fn tiny8_alpha() {
 #[test]
 fn tiny8_titlecase() {
     assert_eq!(
-        "abcdabcd"
+        "abcde"
             .parse::<TinyStr8>()
             .unwrap()
             .to_ascii_titlecase()
             .as_str(),
-        "Abcdabcd"
+        "Abcde"
     );
     assert_eq!(
-        "ABCDABCD"
+        "ABCDE"
             .parse::<TinyStr8>()
             .unwrap()
             .to_ascii_titlecase()
             .as_str(),
-        "Abcdabcd"
+        "Abcde"
     );
     assert_eq!(
-        "aBCDaBCD"
+        "aBCDE"
             .parse::<TinyStr8>()
             .unwrap()
             .to_ascii_titlecase()
             .as_str(),
-        "Abcdabcd"
+        "Abcde"
     );
     assert_eq!(
-        "A123a123"
+        "A1234"
             .parse::<TinyStr8>()
             .unwrap()
             .to_ascii_titlecase()
             .as_str(),
-        "A123a123"
-    );
-    assert_eq!(
-        "123a123A"
+        "A1234"
+        "123ab"
             .parse::<TinyStr8>()
             .unwrap()
             .to_ascii_titlecase()
             .as_str(),
-        "123a123a"
+        "123ab"
     );
 }
 
@@ -313,48 +311,47 @@ fn tiny16_alpha() {
         .is_ascii_alphanumeric());
 }
 
-
 #[test]
 fn tiny16_titlecase() {
     assert_eq!(
-        "abcd"
+        "abcdefghi"
             .parse::<TinyStr16>()
             .unwrap()
             .to_ascii_titlecase()
             .as_str(),
-        "Abcd"
+        "Abcdefghi"
     );
     assert_eq!(
-        "ABCD"
+        "ABCDEFGHI"
             .parse::<TinyStr16>()
             .unwrap()
             .to_ascii_titlecase()
             .as_str(),
-        "Abcd"
+        "Abcdefghi"
     );
     assert_eq!(
-        "aBCD"
+        "aBCDEFGHI"
             .parse::<TinyStr16>()
             .unwrap()
             .to_ascii_titlecase()
             .as_str(),
-        "Abcd"
+        "Abcdefghi"
     );
     assert_eq!(
-        "A123"
+        "A12356789"
             .parse::<TinyStr16>()
             .unwrap()
             .to_ascii_titlecase()
             .as_str(),
-        "A123"
+        "A12356789"
     );
     assert_eq!(
-        "123a"
+        "123abcdef"
             .parse::<TinyStr16>()
             .unwrap()
             .to_ascii_titlecase()
             .as_str(),
-        "123a"
+        "123abcdef"
     );
 }
 
