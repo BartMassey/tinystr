@@ -1,3 +1,4 @@
+/*
 //! tinystr is a small ASCII-only bounded length string representation.
 //!
 //! # Example
@@ -24,9 +25,10 @@
 //!     assert_eq!(s2.is_ascii_alphanumeric(), false);
 //! }
 //! ```
+*/
 mod tinystr;
 
-pub use crate::tinystr::{TinyStr4, TinyStr8, TinyStr16};
+// pub use crate::tinystr::{TinyStr4, TinyStr8, TinyStr16};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Error {

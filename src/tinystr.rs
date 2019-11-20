@@ -6,30 +6,48 @@ use std::str::FromStr;
 
 use crate::Error;
 
-const fn genmask4(byte: u8) -> u32 {
-    (byte as u32)<<24|(byte as u32)<<16|(byte as u32)<<8|(byte as u32)
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+pub struct TinyStr<NZT>(NZT);
+
+trait GenMask {
+    fn genmask(byte: u8) -> Self;
 }
 
-const fn genmask8(byte: u8) -> u64 {
-    (genmask4(byte) as u64) << 32|(genmask4(byte) as u64)
+impl GenMask for u32 {
+    fn genmask(byte: u8) -> u32 {
+        let mask: u32 = byte.into();
+        mask<<24|mask<<16|mask<<8|mask
+    }
 }
 
-const fn genmask16(byte: u8) -> u128 {
-    (genmask8(byte) as u128) << 64 | (genmask8(byte) as u128)
+impl GenMask for u64 {
+    fn genmask(byte: u8) -> u64 {
+        let mask: u32 = u32::genmask(byte);
+        let mask: u64 = mask.into();
+        mask << 32|mask
+    }
+}
+
+impl GenMask for u128 {
+
+    fn genmask(byte: u8) -> u128 {
+        let mask: u64 = u64::genmask(byte);
+        let mask: u128 = mask.into();
+        mask << 64 | mask
+    }
 }
 
 #[test]
 fn test_genmask() {
-    assert_eq!(0xf0f0f0f0u32, genmask4(0xf0));
-    assert_eq!(0xf0f0f0f0_f0f0f0f0u64, genmask8(0xf0));
-    assert_eq!(0xf0f0f0f0_f0f0f0f0_f0f0f0f0_f0f0f0f0u128, genmask16(0xf0));
+    assert_eq!(0xf0f0f0f0u32, u32::genmask(0xf0));
+    assert_eq!(0xf0f0f0f0_f0f0f0f0u64, u64::genmask(0xf0));
+    assert_eq!(0xf0f0f0f0_f0f0f0f0_f0f0f0f0_f0f0f0f0u128, u128::genmask(0xf0));
 }
 
+/*
 macro_rules! tinytype {
     ($ty:ident, $nzt:ty, $ut:ty, $gm:ident) => {
 
-        #[derive(Copy, Clone, PartialEq, Eq, Hash)]
-        pub struct $ty($nzt);
         
         impl $ty {
 
@@ -235,3 +253,4 @@ macro_rules! impl_from_str {
 
 impl_from_str!(TinyStr8, NonZeroU64, u64, genmask8);
 impl_from_str!(TinyStr16, NonZeroU128, u128, genmask16);
+*/
