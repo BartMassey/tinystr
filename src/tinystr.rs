@@ -3,11 +3,15 @@ use std::fmt;
 use std::ops::Deref;
 use std::ptr::copy_nonoverlapping;
 use std::str::FromStr;
+use std::marker::PhantomData;
 
 use crate::Error;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub struct TinyStr<NZT>(NZT);
+pub struct TinyStr<T, NZT> {
+    ts: NZT,
+    base: PhantomData<T>,
+}
 
 trait GenMask {
     fn genmask(byte: u8) -> Self;
@@ -29,7 +33,6 @@ impl GenMask for u64 {
 }
 
 impl GenMask for u128 {
-
     fn genmask(byte: u8) -> u128 {
         let mask: u64 = u64::genmask(byte);
         let mask: u128 = mask.into();
@@ -44,130 +47,129 @@ fn test_genmask() {
     assert_eq!(0xf0f0f0f0_f0f0f0f0_f0f0f0f0_f0f0f0f0u128, u128::genmask(0xf0));
 }
 
-/*
-macro_rules! tinytype {
-    ($ty:ident, $nzt:ty, $ut:ty, $gm:ident) => {
+trait Zt<T> {
+    fn zt(self) -> T;
+}
 
-        
-        impl $ty {
+impl<T, NZT> Zt<T> for TinyStr<T, NZT> {
+    fn zt(self) -> T {
+        self.zt.get::<NZT>()
+    }
+}
 
-            #[inline(always)]
-            const fn size() -> usize {
-                std::mem::size_of::<$ut>()
-            }
+pub trait TinyType<T: Copy + GenMask + Zt>: Deref<&str> {
+    fn size() -> usize {
+        std::mem::size_of::<T>()
+    }
 
-            #[inline(always)]
-            pub const unsafe fn new_unchecked(text: $ut) -> Self {
-                $ty(<$nzt>::new_unchecked(<$ut>::from_le(text)))
-            }
+    pub unsafe fn new_unchecked(text: T) -> Self;
 
-            #[inline(always)]
-            pub fn as_str(&self) -> &str {
-                self.deref()
-            }
+    pub fn as_str(&self) -> &str {
+        self.deref()
+    }
 
-            pub fn to_ascii_uppercase(self) -> Self {
-                const MASK_1F: $ut = $gm(0x1f);
-                const MASK_05: $ut = $gm(0x05);
-                const MASK_80: $ut = $gm(0x80);
-                let word = self.0.get();
-                let result = word
-                    & !(((word + MASK_1F)
-                        & !(word + MASK_05)
-                        & MASK_80)
-                        >> 2);
-                unsafe { Self(<$nzt>::new_unchecked(result)) }
-            }
+    pub fn to_ascii_uppercase(self) -> Self {
+        let mask_1f: T = T::genmask(0x1f);
+        let mask_05: T = T::genmask(0x05);
+        let mask_80: T = T::genmask(0x80);
+        let word = self.zt();
+        let result =
+            word
+            & !(((word + MASK_1F)
+                 & !(word + MASK_05)
+                 & MASK_80)
+                >> 2);
+        unsafe { Self::new_unchecked(result) }
+    }
 
-            pub fn to_ascii_lowercase(self) -> Self {
-                let word = self.0.get();
-                let result = word
-                    | (((word + $gm(0x3f))
-                        & !(word + $gm(0x25))
-                        & $gm(0x80))
-                        >> 2);
-                unsafe { Self(<$nzt>::new_unchecked(result)) }
-            }
+    pub fn to_ascii_lowercase(self) -> Self {
+        let mask_3f: T = T::genmask(0x3f);
+        let mask_25: T = T::genmask(0x25);
+        let mask_80: T = T::genmask(0x80);
+        let word = self.zt();
+        let result = word
+            | (((word + mask_3f)
+                & !(word + mask_25)
+                & mask_80)
+               >> 2);
+        unsafe { Self::new_unchecked(result) }
+    }
 
-            /// Makes the string all lowercase except for
-            /// the first character, which is made
-            /// uppercase.
-            pub fn to_ascii_titlecase(self) -> $ty {
-                const MASK_1F: $ut = $gm(0x3f) & !0x20;
-                const MASK_05: $ut = $gm(0x25) & !0x20;
-                const MASK_80: $ut = $gm(0x80);
-                let word = self.0.get().to_le();
-                let mask = ((word + MASK_1F) & !(word + MASK_05) & MASK_80) >> 2;
-                let result = (word | mask) & !(0x20 & mask);
-                unsafe { Self(<$nzt>::new_unchecked(<$ut>::from_le(result))) }
-            }
+    /// Makes the string all lowercase except for
+    /// the first character, which is made
+    /// uppercase.
+    pub fn to_ascii_titlecase(self) -> $ty {
+        const mask_1f: T = T::genmask(0x3f) & !0x20;
+        const mask_05: T = T::genmask(0x25) & !0x20;
+        const mask_80: T = T::genmask(0x80);
+        let word = self.zt();
+        let mask = ((word + mask_1F) & !(word + mask_05) & mask_80) >> 2;
+        let result = (word | mask) & !(0x20 & mask);
+        unsafe { Self::new_unchecked(result) }
+    }
 
-            pub fn is_ascii_alphanumeric(self) -> bool {
-                const MASK_7F: $ut = $gm(0x7f);
-                const MASK_80: $ut = $gm(0x80);
-                const MASK_20: $ut = $gm(0x20);
-                const MASK_1F: $ut = $gm(0x1f);
-                const MASK_05: $ut = $gm(0x05);
-                let word = self.0.get();
-                let mask = (word + MASK_7F) & MASK_80;
-                let lower = word | MASK_20;
-                ((!(lower + MASK_1F) | (lower + MASK_05)) & mask) == 0
-            }
+    pub fn is_ascii_alphanumeric(self) -> bool {
+        const mask_7f: T = T::genmask(0x7f);
+        const mask_80: T = T::genmask(0x80);
+        const mask_20: T = T::genmask(0x20);
+        const mask_1f: T = T::genmask(0x1f);
+        const mask_05: T = T::genmask(0x05);
+        let word = self.zt();
+        let mask = (word + mask_7f) & mask_80;
+        let lower = word | mask_20;
+        ((!(lower + mask_1f) | (lower + mask_05)) & mask) == 0
+    }
+}
 
+impl Deref for $ty {
+    type Target = str;
+
+    #[inline(always)]
+    fn deref(&self) -> &str {
+        // Again, could use #cfg to hand-roll a big-endian implementation.
+        let word = self.0.get().to_le();
+        let len = <$ty>::size() - word.leading_zeros() as usize / 8;
+        unsafe {
+            let slice = core::slice::from_raw_parts(&self.0.get() as *const _ as *const u8, len);
+            std::str::from_utf8_unchecked(slice)
         }
+    }
+}
 
-        impl Deref for $ty {
-            type Target = str;
+impl fmt::Display for $ty {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.deref())
+    }
+}
 
-            #[inline(always)]
-            fn deref(&self) -> &str {
-                // Again, could use #cfg to hand-roll a big-endian implementation.
-                let word = self.0.get().to_le();
-                let len = <$ty>::size() - word.leading_zeros() as usize / 8;
-                unsafe {
-                    let slice = core::slice::from_raw_parts(&self.0.get() as *const _ as *const u8, len);
-                    std::str::from_utf8_unchecked(slice)
-                }
-            }
-        }
-
-        impl fmt::Display for $ty {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(f, "{}", self.deref())
-            }
-        }
-
-        impl fmt::Debug for $ty {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(f, "{:?}", self.deref())
-            }
-        }
+impl fmt::Debug for $ty {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.deref())
+    }
+}
 
 
-        impl PartialEq<&str> for $ty {
-            fn eq(&self, other: &&str) -> bool {
-                self.deref() == *other
-            }
-        }
+impl PartialEq<&str> for $ty {
+    fn eq(&self, other: &&str) -> bool {
+        self.deref() == *other
+    }
+}
 
-        impl PartialOrd for $ty {
-            fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-                Some(self.cmp(other))
-            }
-        }
+impl PartialOrd for $ty {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
-        impl Ord for $ty {
-            fn cmp(&self, other: &Self) -> Ordering {
-                self.0.get().to_be().cmp(&other.0.get().to_be())
-            }
-        }
+impl Ord for $ty {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.0.get().to_be().cmp(&other.0.get().to_be())
+    }
+}
 
-        impl From<$ty> for $ut {
-            fn from(val: $ty) -> $ut {
-                val.0.get().to_le()
-            }
-        }
-
+impl From<$ty> for $ut {
+    fn from(val: $ty) -> $ut {
+        val.0.get().to_le()
     }
 }
 
@@ -254,3 +256,7 @@ macro_rules! impl_from_str {
 impl_from_str!(TinyStr8, NonZeroU64, u64, genmask8);
 impl_from_str!(TinyStr16, NonZeroU128, u128, genmask16);
 */
+
+        pub const unsafe fn new_unchecked(text: T) -> Self {
+        Self(<$nzt>::new_unchecked(<$ut>::from_le(text)))
+    }
